@@ -19,7 +19,6 @@
         }
         * { box-sizing: border-box; outline: none; }
         
-        /* Убираем стрелочки у input type=number во всем документе */
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button {
             -webkit-appearance: none;
@@ -111,7 +110,6 @@
             white-space: nowrap;
         }
         
-        /* Компактные инпуты */
         input[type="number"], select, input[type="datetime-local"] {
             background: var(--bg-input);
             border: 1px solid #5f5f8a;
@@ -128,13 +126,11 @@
             box-shadow: 0 0 0 2px rgba(247, 212, 74, 0.2);
         }
         
-        /* Специфичные размеры для настроек */
         #thSelect { width: 110px; }
         #discountPercent { width: 80px; }
         #parallelCount { width: 130px; }
         #startDateTime { width: 230px; }
 
-        /* Группа ввода даты и кнопки "Сейчас" */
         .datetime-input-group {
             display: flex;
             gap: 8px;
@@ -157,7 +153,6 @@
         .btn-now:hover { background: #4a4a7a; }
         .btn-now:active { transform: scale(0.95); }
 
-        /* Таймлайн (Запретный интервал) */
         .time-range {
             display: flex;
             align-items: center;
@@ -559,7 +554,7 @@
 
         let currentPlan = [];
         let scheduleUpdateTimer = null;
-        const STORAGE_KEY = 'cocHeroPlanV3';
+        const STORAGE_KEY = 'cocHeroPlanV4'; // Обновил ключ версии для чистого старта
 
         const thSelect = document.getElementById('thSelect');
         const heroesContainer = document.getElementById('heroesContainer');
@@ -663,25 +658,60 @@
         }
         function formatCost(c) { return c.toLocaleString('ru-RU'); }
 
-        function savePlanToStorage() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(currentPlan));
+        // ---------- ЕДИНАЯ СИСТЕМА СОХРАНЕНИЯ ----------
+        function saveState() {
+            const data = {
+                plan: currentPlan,
+                settings: {
+                    th: thSelect.value,
+                    start: startDateTimeInput.value,
+                    discount: discountInput.value,
+                    parallel: parallelCountInput.value,
+                    nightStartH: nightStartH.value,
+                    nightStartM: nightStartM.value,
+                    nightEndH: nightEndH.value,
+                    nightEndM: nightEndM.value
+                }
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         }
 
-        function loadPlanFromStorage() {
+        function loadState() {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 try {
-                    currentPlan = JSON.parse(saved);
-                    currentPlan.forEach(p => { if(!p.uid) p.uid = generateUid(); });
-                } catch(e) { console.error(e); currentPlan = []; }
+                    const data = JSON.parse(saved);
+                    
+                    // Восстанавливаем план
+                    if (data.plan) {
+                        currentPlan = data.plan;
+                        currentPlan.forEach(p => { if(!p.uid) p.uid = generateUid(); });
+                    }
+                    
+                    // Восстанавливаем настройки
+                    if (data.settings) {
+                        const s = data.settings;
+                        if(s.th) thSelect.value = s.th;
+                        if(s.start) startDateTimeInput.value = s.start;
+                        if(s.discount) discountInput.value = s.discount;
+                        if(s.parallel) parallelCountInput.value = s.parallel;
+                        if(s.nightStartH) nightStartH.value = s.nightStartH;
+                        if(s.nightStartM) nightStartM.value = s.nightStartM;
+                        if(s.nightEndH) nightEndH.value = s.nightEndH;
+                        if(s.nightEndM) nightEndM.value = s.nightEndM;
+                        
+                        return true; // Успешная загрузка настроек
+                    }
+                } catch(e) { console.error(e); }
             }
+            return false; // Настроек не было или ошибка
         }
 
-        // ИСПРАВЛЕНО: Убрано лишнее вычисление часового пояса
         function setDefaultStart() { 
             const d=new Date(); 
             // Берем текущее локальное время как есть
             startDateTimeInput.value=toLocalDateTimeString(d); 
+            saveState(); // Сразу сохраняем дефолтное время, чтобы при первой загрузке не сбивалось
         }
 
         // Часы в шапке
@@ -700,8 +730,13 @@
             showToast("Установлено текущее время");
         });
 
-        // Инициализация времени при загрузке (если не было сохранено)
-        if(!startDateTimeInput.value) setDefaultStart();
+        // Инициализация
+        const hasSettings = loadState();
+        
+        // Если настроек не было (первый запуск), ставим текущее время
+        if(!hasSettings || !startDateTimeInput.value) {
+            setDefaultStart();
+        }
 
         function renderHeroCards() {
             const th=+thSelect.value, max=heroMaxLevels[th];
@@ -762,7 +797,7 @@
                 });
             }
             renderPlanTable();
-            savePlanToStorage();
+            saveState(); // Сохраняем план и настройки
             showToast(`Добавлены уровни: ${from} ➝ ${to}`);
         }
 
@@ -818,7 +853,7 @@
                     currentPlan.splice(idx,1);
                     renderPlanTable();
                     renderHeroCards(); 
-                    savePlanToStorage();
+                    saveState();
                 }
             }));
         }
@@ -1115,17 +1150,26 @@
             renderHeroCards(); 
             scheduleBody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;">Нажмите «Рассчитать»</td></tr>';
             totalTimeSpan.textContent='—'; totalCostSpan.textContent='—'; finalFinishSpan.textContent='—';
-            savePlanToStorage();
+            saveState();
             showToast("План сброшен");
         }
 
-        loadPlanFromStorage();
+        // Рендер при загрузке
         renderHeroCards();
         renderPlanTable();
 
+        // Слушатели событий
         thSelect.addEventListener('change', ()=>{ renderHeroCards(); resetPlan(); });
         resetTargetsBtn.addEventListener('click', resetPlan);
         recalcBtn.addEventListener('click', renderFullSchedule);
+        
+        // Сохранение настроек при изменении
+        discountInput.addEventListener('change', saveState);
+        parallelCountInput.addEventListener('change', saveState);
+        startDateTimeInput.addEventListener('change', saveState);
+        [nightStartH, nightStartM, nightEndH, nightEndM].forEach(el => el.addEventListener('change', saveState));
+
+        // Специальная обработка скидки (пересчет цен)
         discountInput.addEventListener('change', ()=>{
             if(currentPlan.length){
                 const d=parseFloat(discountInput.value)/100;
@@ -1137,7 +1181,7 @@
                     }
                 });
                 renderPlanTable();
-                savePlanToStorage();
+                // saveState уже вызван выше
                 showToast("Скидка обновлена");
             }
         });
