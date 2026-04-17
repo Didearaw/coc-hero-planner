@@ -60,9 +60,8 @@
 ## 🚀 Демонстрация
 
 Попробуйте онлайн прямо сейчас:  
-👉 **[coc-hero-planner.pages.dev](https://didearaw.github.io/coc-hero-planner/)**  
+👉 **[coc-hero-planner](https://didearaw.github.io/coc-hero-planner/)**  
 
-*(замените ссылку на актуальную после публикации на GitHub Pages)*
 
 ---
 
