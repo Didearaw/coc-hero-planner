@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Clash of Clans · Планировщик героев (автосохранение)</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: #1a1a2e;
+            margin: 0;
+            min-height: 100vh;
+            padding: 20px 12px;
+            color: #eaeaf2;
+        }
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            background: #22223b;
+            border-radius: 32px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+            padding: 24px 24px 32px;
+            border: 1px solid #4a4a70;
+        }
+        h1 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 2.2rem;
+            margin: 0 0 8px;
+            color: #f7d44a;
+            text-shadow: 0 2px 5px #00000060;
+        }
+        h1 small {
+            font-size: 0.9rem;
+            color: #b9b9e0;
+            margin-left: auto;
+            font-weight: 400;
+        }
+        .subtitle {
+            margin-top: -5px;
+            margin-bottom: 24px;
+            color: #bcbcd4;
+            border-left: 4px solid #f7d44a;
+            padding-left: 18px;
+            font-style: italic;
+        }
+        .card {
+            background: #1e1e32;
+            border-radius: 24px;
+            padding: 20px 24px;
+            margin-bottom: 28px;
+            border: 1px solid #3f3f62;
+            box-shadow: inset 0 0 0 1px #0000001a, 0 8px 12px #00000040;
+        }
+        .settings-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px 40px;
+            align-items: flex-end;
+        }
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .setting-group label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #a9a9cf;
+            font-weight: 600;
+        }
+        .time-range {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #0f0f1a;
+            padding: 6px 14px;
+            border-radius: 40px;
+            border: 1px solid #5f5f8a;
+        }
+        .time-range input {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1.1rem;
+            width: 60px;
+            padding: 4px;
+            text-align: center;
+            font-family: monospace;
+        }
+        .time-range input:focus {
+            outline: none;
+            background: #2a2a50;
+            border-radius: 12px;
+        }
+        .time-range span {
+            font-weight: bold;
+            color: #f7d44a;
+        }
+        .setting-group select, .setting-group input[type="number"] {
+            background: #0f0f1a;
+            border: 1px solid #5f5f8a;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 30px;
+            font-size: 1rem;
+            min-width: 160px;
+        }
+        button {
+            background: #f7d44a;
+            border: none;
+            color: #1e1e2f;
+            font-weight: bold;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #9e7e1e;
+            transition: 0.1s ease;
+            border: 1px solid #ffe48f;
+            letter-spacing: 0.3px;
+        }
+        button.secondary {
+            background: #4a4a6a;
+            box-shadow: 0 4px 0 #2c2c44;
+            color: #f0f0ff;
+            border-color: #7a7aad;
+        }
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #9e7e1e;
+        }
+        .heroes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .hero-card {
+            background: #18182a;
+            border-radius: 20px;
+            padding: 16px 18px;
+            border-left: 5px solid #7e7eb0;
+            box-shadow: 0 4px 6px #00000030;
+        }
+        .hero-card h3 {
+            margin: 0 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+        .hero-level-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 10px 0;
+        }
+        .hero-level-row input {
+            width: 80px;
+            background: #0b0b18;
+            border: 1px solid #6a6a9a;
+            color: white;
+            padding: 8px;
+            border-radius: 24px;
+            text-align: center;
+        }
+        .max-level { color: #a0a0d0; font-size: 0.9rem; }
+        .btn-small {
+            padding: 8px 14px;
+            font-size: 0.9rem;
+            box-shadow: 0 3px 0 #7a5f18;
+            margin-top: 8px;
+            width: 100%;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 20px;
+            background: #1b1b2a;
+            margin-top: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            min-width: 1300px;
+        }
+        th {
+            text-align: left;
+            padding: 12px 8px;
+            background: #2f2f4a;
+            color: #f0e6b2;
+            font-weight: 600;
+            border-bottom: 2px solid #5f5f8a;
+        }
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #3d3d5e;
+            vertical-align: middle;
+        }
+        .editable-time {
+            background: #1a1a30;
+            border: 1px solid #7a7ab0;
+            font-family: monospace;
+            padding: 6px 8px;
+            border-radius: 24px;
+            color: #d0f0ff;
+            width: 150px;
+        }
+        .night-warning {
+            background: #b33b3b30;
+            color: #ffaeae;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        .ok-badge {
+            background: #2e7d5e40;
+            color: #b1ffcf;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        .summary {
+            margin-top: 24px;
+            font-size: 1.2rem;
+            background: #1f1f36;
+            padding: 18px 24px;
+            border-radius: 40px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #6e6e9a;
+        }
+        .footer-note {
+            margin-top: 16px;
+            color: #9b9bc0;
+            font-size: 0.85rem;
+        }
+        .parallel-control {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 10px 0 20px;
+        }
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #ff9e9e;
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 0 6px;
+        }
+        .cost-cell { font-family: monospace; text-align: right; }
+        .timer-cell { font-family: monospace; font-weight: 500; }
+
+        /* Стили группировки */
+        .hero-group-header {
+            background: #2a2a4a;
+            cursor: pointer;
+        }
+        .hero-group-header td {
+            padding: 8px 12px;
+            font-weight: bold;
+            color: #f7d44a;
+        }
+        .group-row-barbarian { background-color: #2d1f2d; }
+        .group-row-archer { background-color: #1f2d2d; }
+        .group-row-minion { background-color: #2d2d1f; }
+        .group-row-guardian { background-color: #1f2d1f; }
+        .group-row-champion { background-color: #2d1f1f; }
+        .group-row-dragon { background-color: #1f1f2d; }
+        .toggle-icon { display: inline-block; width: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>⚔️ COC · Прокачка героев <small>Gold Pass 20%</small></h1>
+    <div class="subtitle">МСК (UTC+3) · параллельный старт · автосохранение</div>
+
+    <div class="card">
+        <div class="settings-panel">
+            <div class="setting-group">
+                <label>🏰 Ратуша (TH)</label>
+                <select id="thSelect">
+                    <option value="7">TH7</option><option value="8">TH8</option><option value="9">TH9</option>
+                    <option value="10" selected>TH10</option><option value="11">TH11</option><option value="12">TH12</option>
+                    <option value="13">TH13</option><option value="14">TH14</option><option value="15">TH15</option>
+                    <option value="16">TH16</option><option value="17">TH17</option><option value="18">TH18</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <label>🌙 Запретный интервал (МСК)</label>
+                <div class="time-range">
+                    <input id="nightStartH" value="0" min="0" max="23" type="number"> :
+                    <input id="nightStartM" value="0" min="0" max="59" type="number"> 
+                    <span>—</span>
+                    <input id="nightEndH" value="7" min="0" max="23" type="number"> :
+                    <input id="nightEndM" value="0" min="0" max="59" type="number">
+                </div>
+            </div>
+            <div class="setting-group">
+                <label>⏳ Скидка (время и стоимость)</label>
+                <input type="number" id="discountPercent" value="20" min="0" max="99" step="1" style="width:100px;"> %
+            </div>
+            <div class="setting-group">
+                <label>📅 Начало планирования</label>
+                <input type="datetime-local" id="startDateTime" style="width:240px;">
+            </div>
+        </div>
+        <div class="parallel-control">
+            <div class="setting-group">
+                <label>👥 Одновременно героев</label>
+                <input type="number" id="parallelCount" value="2" min="1" max="6" step="1" style="width:90px;">
+            </div>
+            <button id="recalcBtn" style="margin-left:auto;">🔄 Рассчитать расписание</button>
+            <button id="resetTargetsBtn" class="secondary">🎯 Сбросить цели</button>
+        </div>
+    </div>
+
+    <h3 style="margin: 10px 0 5px;">👑 Выберите цели прокачки</h3>
+    <div id="heroesContainer" class="heroes-grid"></div>
+
+    <div style="margin-top: 20px;">
+        <div style="display: flex; justify-content: space-between;">
+            <h4>📋 Запланированные улучшения (сгруппированы)</h4>
+            <span style="font-size:0.9rem;">✏️ Время старта можно редактировать после расчёта</span>
+        </div>
+        <div class="table-wrapper">
+            <table id="planTable">
+                <thead><tr><th style="width:20px"></th><th>#</th><th>Герой</th><th>Уровень →</th><th>Базовое время</th><th>Со скидкой</th><th>Стоимость (скидка)</th><th></th></tr></thead>
+                <tbody id="planBody"><tr><td colspan="8" style="text-align:center;">Добавьте уровни в план</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <h3 style="margin: 30px 0 10px;">🗓️ График прокачки (сгруппирован по героям)</h3>
+    <div class="table-wrapper">
+        <table id="scheduleTable">
+            <thead><tr><th style="width:20px"></th><th>#</th><th>Герой</th><th>Уровень →</th><th>Стоимость</th><th>Старт (МСК)</th><th>Финиш (МСК)</th><th>Длительность</th><th>Осталось</th><th>Статус</th></tr></thead>
+            <tbody id="scheduleBody"><tr><td colspan="10" style="text-align:center;">Нажмите «Рассчитать»</td></tr></tbody>
+        </table>
+    </div>
+
+    <div class="summary">
+        <span>💰 Общая стоимость: <strong id="totalCostSpan">—</strong></span>
+        <span>🏁 Общее время: <strong id="totalTimeSpan">—</strong></span>
+        <span>📆 Завершение: <strong id="finalFinishSpan">—</strong> (МСК)</span>
+    </div>
+    <div class="footer-note">
+        ⚡ Разные герои стартуют одновременно (до лимита). Внутри героя — последовательно.<br>
+        💡 Все изменения плана автоматически сохраняются в браузере. Группы можно сворачивать.
+    </div>
+</div>
+
+<script>
+    (function(){
+        "use strict";
+
+        // ---------- ДАННЫЕ ГЕРОЕВ (полные таблицы) ----------
+        const heroData = { barbarian: [], archer: [], minion: [], guardian: [], champion: [], dragon: [] };
+
+        const barbarianRaw = [[1,0,0],[2,5,120],[3,5.5,240],[4,6,480],[5,6.5,600],[6,7,720],[7,7.5,840],[8,8,960],[9,8.5,1080],[10,10,1200],[11,10.5,1320],[12,11,1440],[13,11.5,1440],[14,12,1440],[15,12.5,1440],[16,13,1440],[17,13.5,1440],[18,14,1440],[19,14.5,1440],[20,15,1440],[21,17,1440],[22,19,1440],[23,21,1440],[24,23,1440],[25,25,1440],[26,27,2880],[27,29,2880],[28,31,2880],[29,33,2880],[30,35,2880],[31,37,3240],[32,39,3240],[33,41,3240],[34,43,3240],[35,45,3240],[36,47,3600],[37,49,3600],[38,51,3600],[39,53,3600],[40,55,3600],[41,58,4320],[42,61,4320],[43,64,4320],[44,67,4320],[45,70,4320],[46,73,4320],[47,76,4320],[48,79,4320],[49,82,4320],[50,85,4320],[51,86,5040],[52,87,5040],[53,88,5040],[54,89,5040],[55,90,5040],[56,93,5040],[57,96,5040],[58,99,5040],[59,102,5040],[60,105,5040],[61,107,5760],[62,109,5760],[63,111,5760],[64,113,5760],[65,115,5760],[66,117,5760],[67,119,5760],[68,121,5760],[69,123,5760],[70,125,5760],[71,130,6480],[72,135,6480],[73,140,6480],[74,145,6480],[75,150,6480],[76,155,7200],[77,160,7200],[78,165,7200],[79,170,7200],[80,175,7200],[81,180,8640],[82,190,8640],[83,200,8640],[84,210,8640],[85,220,8640],[86,230,10080],[87,240,10080],[88,250,10080],[89,260,10080],[90,270,10080],[91,280,10800],[92,290,10800],[93,300,10800],[94,310,10800],[95,320,10800],[96,340,11520],[97,350,11520],[98,360,11520],[99,370,11520],[100,380,11520],[101,400,11520],[102,410,11520],[103,420,11520],[104,430,11520],[105,450,11520]];
+        barbarianRaw.forEach(([lvl, cost, mins]) => { heroData.barbarian[lvl] = { cost: cost * 1000, timeMinutes: mins }; });
+        const archerRaw = [[1,0,0],[2,5,120],[3,5.5,240],[4,6,480],[5,6.5,600],[6,7,720],[7,7.5,840],[8,8,960],[9,8.5,1080],[10,10,1200],[11,10.5,1320],[12,11,1440],[13,11.5,1440],[14,12,1440],[15,12.5,1440],[16,13,1440],[17,13.5,1440],[18,14,1440],[19,14.5,1440],[20,15,1440],[21,17,1440],[22,19,1440],[23,21,1440],[24,23,1440],[25,25,1440],[26,27,2880],[27,29,2880],[28,31,2880],[29,33,2880],[30,35,2880],[31,37,3240],[32,39,3240],[33,41,3240],[34,43,3240],[35,45,3240],[36,47,3600],[37,49,3600],[38,51,3600],[39,53,3600],[40,55,3600],[41,58,4320],[42,61,4320],[43,64,4320],[44,67,4320],[45,70,4320],[46,73,4320],[47,76,4320],[48,79,4320],[49,82,4320],[50,85,4320],[51,86,5040],[52,87,5040],[53,88,5040],[54,89,5040],[55,90,5040],[56,93,5040],[57,96,5040],[58,99,5040],[59,102,5040],[60,105,5040],[61,107,5760],[62,109,5760],[63,111,5760],[64,113,5760],[65,115,5760],[66,117,5760],[67,119,5760],[68,121,5760],[69,123,5760],[70,125,5760],[71,130,6480],[72,135,6480],[73,140,6480],[74,145,6480],[75,150,6480],[76,155,7200],[77,160,7200],[78,165,7200],[79,170,7200],[80,175,7200],[81,180,8640],[82,190,8640],[83,200,8640],[84,210,8640],[85,220,8640],[86,230,10080],[87,240,10080],[88,250,10080],[89,260,10080],[90,270,10080],[91,280,10800],[92,290,10800],[93,300,10800],[94,310,10800],[95,320,10800],[96,340,11520],[97,350,11520],[98,360,11520],[99,370,11520],[100,380,11520],[101,400,11520],[102,410,11520],[103,420,11520],[104,430,11520],[105,450,11520]];
+        archerRaw.forEach(([lvl, cost, mins]) => { heroData.archer[lvl] = { cost: cost * 1000, timeMinutes: mins }; });
+        const minionRaw = [[1,0,0],[2,5,120],[3,5.5,240],[4,6,480],[5,6.5,600],[6,7,720],[7,7.5,840],[8,8,960],[9,8.5,1080],[10,10,1200],[11,10.5,1320],[12,11,1440],[13,11.5,1440],[14,12,1440],[15,12.5,1440],[16,13,1440],[17,13.5,1440],[18,14,1440],[19,14.5,1440],[20,15,1440],[21,17,1440],[22,19,1440],[23,21,1440],[24,23,1440],[25,25,1440],[26,27,2160],[27,29,2160],[28,31,2160],[29,33,2160],[30,35,2160],[31,36,2880],[32,37,2880],[33,38,2880],[34,39,2880],[35,40,2880],[36,41,3240],[37,42,3240],[38,43,3240],[39,44,3240],[40,45,3240],[41,50,4320],[42,55,4320],[43,60,4320],[44,65,4320],[45,70,4320],[46,75,5760],[47,80,5760],[48,85,5760],[49,90,5760],[50,95,5760],[51,100,6480],[52,105,6480],[53,110,6480],[54,115,6480],[55,120,6480],[56,125,7200],[57,130,7200],[58,135,7200],[59,140,7200],[60,145,7200],[61,150,8640],[62,155,8640],[63,160,8640],[64,165,8640],[65,170,8640],[66,175,10080],[67,180,10080],[68,185,10080],[69,190,10080],[70,195,10080],[71,200,10800],[72,205,10800],[73,210,10800],[74,215,10800],[75,230,10800],[76,240,10800],[77,250,10800],[78,260,10800],[79,270,10800],[80,280,10800],[81,290,11520],[82,300,11520],[83,310,11520],[84,320,11520],[85,330,11520],[86,340,11520],[87,350,11520],[88,360,11520],[89,370,11520],[90,380,11520],[91,400,11520],[92,410,11520],[93,420,11520],[94,430,11520],[95,450,11520]];
+        minionRaw.forEach(([lvl, cost, mins]) => { heroData.minion[lvl] = { cost: cost * 1000, timeMinutes: mins }; });
+        const guardianRaw = [[1,1000000,0],[2,1000000,120],[3,1100000,240],[4,1200000,480],[5,1400000,600],[6,1500000,720],[7,1700000,840],[8,1800000,960],[9,2000000,1080],[10,2300000,1200],[11,2700000,1440],[12,3000000,1440],[13,3400000,1440],[14,3700000,1440],[15,4100000,1440],[16,4400000,1440],[17,4800000,1440],[18,5100000,1440],[19,5500000,1440],[20,6000000,1440],[21,6500000,2160],[22,6600000,2160],[23,6700000,2160],[24,6800000,2160],[25,6900000,2160],[26,6600000,2160],[27,6700000,2160],[28,6800000,2160],[29,6900000,2160],[30,7000000,2160],[31,7100000,2880],[32,7200000,2880],[33,7300000,2880],[34,7400000,2880],[35,7500000,2880],[36,7600000,3240],[37,7700000,3240],[38,7800000,3240],[39,7900000,3240],[40,8000000,3240],[41,8300000,4320],[42,8600000,4320],[43,8900000,4320],[44,9200000,4320],[45,9500000,4320],[46,9800000,5760],[47,10100000,5760],[48,10400000,5760],[49,10700000,5760],[50,11000000,5760],[51,11400000,6480],[52,11800000,6480],[53,12200000,6480],[54,12600000,6480],[55,13000000,6480],[56,13400000,7200],[57,13800000,7200],[58,14200000,7200],[59,14600000,7200],[60,15000000,7200],[61,15500000,8640],[62,16000000,8640],[63,16500000,8640],[64,17000000,8640],[65,17500000,8640],[66,18000000,10080],[67,18500000,10080],[68,19000000,10080],[69,19500000,10080],[70,20000000,10800],[71,20500000,11520],[72,21000000,11520],[73,21500000,11520],[74,22000000,11520],[75,22500000,11520],[76,24000000,11520],[77,25500000,11520],[78,27000000,11520],[79,28500000,11520],[80,30000000,11520]];
+        guardianRaw.forEach(([lvl, cost, mins]) => { heroData.guardian[lvl] = { cost, timeMinutes: mins }; });
+        const championRaw = [[1,0,0],[2,10,240],[3,15,600],[4,20,720],[5,25,1200],[6,30,1440],[7,35,1440],[8,40,1440],[9,45,1440],[10,50,1440],[11,53,1440],[12,56,1440],[13,59,1440],[14,62,1440],[15,65,1440],[16,70,2160],[17,75,2160],[18,80,2160],[19,85,2160],[20,90,2160],[21,95,2880],[22,100,2880],[23,105,2880],[24,110,2880],[25,115,2880],[26,120,4320],[27,125,4320],[28,130,4320],[29,135,4320],[30,140,4320],[31,145,5760],[32,150,5760],[33,155,5760],[34,160,5760],[35,165,5760],[36,170,7200],[37,175,7200],[38,180,7200],[39,200,7200],[40,220,7200],[41,240,7200],[42,260,8640],[43,280,9360],[44,300,10080],[45,320,10800],[46,340,11520],[47,350,11520],[48,360,11520],[49,370,11520],[50,380,11520],[51,400,11520],[52,410,11520],[53,420,11520],[54,430,11520],[55,450,11520]];
+        championRaw.forEach(([lvl, cost, mins]) => { heroData.champion[lvl] = { cost: cost * 1000, timeMinutes: mins }; });
+        const dragonRaw = [[1,0,0],[2,50,360],[3,60,720],[4,70,1440],[5,80,1440],[6,90,2880],[7,100,2880],[8,110,2880],[9,120,4320],[10,130,4320],[11,150,5760],[12,175,7200],[13,200,7200],[14,225,8640],[15,250,8640],[16,275,10080],[17,300,10080],[18,325,11520],[19,350,11520],[20,375,11520],[21,400,11520],[22,420,11520],[23,440,11520],[24,460,11520],[25,480,11520]];
+        dragonRaw.forEach(([lvl, cost, mins]) => { heroData.dragon[lvl] = { cost: cost * 1000, timeMinutes: mins }; });
+
+        const heroMaxLevels = {
+            7:{barbarian:10,archer:0,minion:0,guardian:0,champion:0,dragon:0},
+            8:{barbarian:20,archer:10,minion:0,guardian:0,champion:0,dragon:0},
+            9:{barbarian:30,archer:30,minion:10,guardian:0,champion:0,dragon:0},
+            10:{barbarian:40,archer:40,minion:20,guardian:0,champion:0,dragon:0},
+            11:{barbarian:50,archer:50,minion:30,guardian:20,champion:0,dragon:0},
+            12:{barbarian:65,archer:65,minion:40,guardian:40,champion:0,dragon:0},
+            13:{barbarian:75,archer:75,minion:50,guardian:50,champion:25,dragon:0},
+            14:{barbarian:85,archer:85,minion:60,guardian:60,champion:30,dragon:0},
+            15:{barbarian:90,archer:90,minion:70,guardian:65,champion:40,dragon:10},
+            16:{barbarian:95,archer:95,minion:80,guardian:70,champion:45,dragon:15},
+            17:{barbarian:100,archer:100,minion:90,guardian:75,champion:50,dragon:20},
+            18:{barbarian:105,archer:105,minion:95,guardian:80,champion:55,dragon:25}
+        };
+        const heroNames = {
+            barbarian:'👑 Король варваров', archer:'🏹 Королева лучниц', minion:'🦇 Принц Миньонов',
+            guardian:'📜 Хранитель', champion:'⚔️ Королевский чемпион', dragon:'🐉 Герцог Драконов'
+        };
+        const heroColorClass = {
+            barbarian: 'group-row-barbarian', archer: 'group-row-archer', minion: 'group-row-minion',
+            guardian: 'group-row-guardian', champion: 'group-row-champion', dragon: 'group-row-dragon'
+        };
+
+        let currentPlan = [];
+        let scheduleUpdateTimer = null;
+        const STORAGE_KEY = 'cocHeroPlanV2';
+
+        const thSelect = document.getElementById('thSelect');
+        const heroesContainer = document.getElementById('heroesContainer');
+        const planBody = document.getElementById('planBody');
+        const scheduleBody = document.getElementById('scheduleBody');
+        const totalTimeSpan = document.getElementById('totalTimeSpan');
+        const totalCostSpan = document.getElementById('totalCostSpan');
+        const finalFinishSpan = document.getElementById('finalFinishSpan');
+        const recalcBtn = document.getElementById('recalcBtn');
+        const resetTargetsBtn = document.getElementById('resetTargetsBtn');
+        const discountInput = document.getElementById('discountPercent');
+        const startDateTimeInput = document.getElementById('startDateTime');
+        const parallelCountInput = document.getElementById('parallelCount');
+        const nightStartH = document.getElementById('nightStartH'), nightStartM = document.getElementById('nightStartM');
+        const nightEndH = document.getElementById('nightEndH'), nightEndM = document.getElementById('nightEndM');
+
+        const MOSCOW_OFFSET = 3 * 60;
+        function toLocalDateTimeString(d) { const p=n=>n.toString().padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+        function parseLocalDateTime(s) { if(!s) return new Date(); const [dp,tp]=s.split('T'); const [y,m,d]=dp.split('-').map(Number); const [hh,mm]=tp.split(':').map(Number); return new Date(y,m-1,d,hh,mm); }
+        function toMoscowString(d) { const msk=new Date(d.getTime()+MOSCOW_OFFSET*60000); const p=n=>n.toString().padStart(2,'0'); return `${p(msk.getUTCDate())}.${p(msk.getUTCMonth()+1)}.${msk.getUTCFullYear()} ${p(msk.getUTCHours())}:${p(msk.getUTCMinutes())}`; }
+        function minutesFromMidnightMsk(d) { const msk=new Date(d.getTime()+MOSCOW_OFFSET*60000); return msk.getUTCHours()*60+msk.getUTCMinutes(); }
+        function isForbidden(d, sH,sM, eH,eM) { const m=minutesFromMidnightMsk(d); const s=sH*60+sM, e=eH*60+eM; return e<=s ? m>=s || m<e : m>=s && m<e; }
+        function findSafeStart(ref, dur, sH,sM, eH,eM) { let c=new Date(ref); for(let i=0;i<2000;i++){ if(!isForbidden(new Date(c.getTime()+dur*60000), sH,sM, eH,eM)) return c; c=new Date(c.getTime()+60000); } return ref; }
+        function formatDuration(min) { const d=Math.floor(min/1440), h=Math.floor((min%1440)/60), m=min%60; return `${d?d+'д ':''}${h}ч ${m}мин`; }
+        function formatCost(c) { return c.toLocaleString('ru-RU'); }
+
+        function savePlanToStorage() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(currentPlan));
+        }
+
+        function loadPlanFromStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    currentPlan = JSON.parse(saved);
+                } catch(e) { currentPlan = []; }
+            }
+        }
+
+        function setDefaultStart() { const d=new Date(); d.setMinutes(d.getMinutes()+1); startDateTimeInput.value=toLocalDateTimeString(d); }
+        setDefaultStart();
+
+        function renderHeroCards() {
+            const th=+thSelect.value, max=heroMaxLevels[th];
+            const heroes = [
+                {key:'barbarian',name:heroNames.barbarian,maxLvl:max.barbarian},
+                {key:'archer',name:heroNames.archer,maxLvl:max.archer},
+                {key:'minion',name:heroNames.minion,maxLvl:max.minion},
+                {key:'guardian',name:heroNames.guardian,maxLvl:max.guardian},
+                {key:'champion',name:heroNames.champion,maxLvl:max.champion},
+                {key:'dragon',name:heroNames.dragon,maxLvl:max.dragon}
+            ].filter(h=>h.maxLvl>0);
+            heroesContainer.innerHTML='';
+            heroes.forEach(h=>{
+                const card=document.createElement('div'); card.className='hero-card'; card.dataset.key=h.key;
+                const cur = (()=>{ const ups=currentPlan.filter(p=>p.heroKey===h.key); return ups.length ? Math.max(...ups.map(u=>u.to)) : 1; })();
+                card.innerHTML=`<h3>${h.name}</h3>
+                    <div class="hero-level-row"><span>Текущий:</span><input type="number" class="current-lvl" value="${cur}" min="1" max="${h.maxLvl}"></div>
+                    <div class="hero-level-row"><span>Цель:</span><input type="number" class="target-lvl" value="${h.maxLvl}" min="1" max="${h.maxLvl}"></div>
+                    <div class="max-level">Макс: ${h.maxLvl}</div>
+                    <button class="btn-small add-to-plan">📌 Добавить в план</button>`;
+                heroesContainer.appendChild(card);
+            });
+            document.querySelectorAll('.add-to-plan').forEach(b=>b.addEventListener('click', e=>{
+                const card=e.target.closest('.hero-card'), key=card.dataset.key;
+                const cur=+card.querySelector('.current-lvl').value, tgt=+card.querySelector('.target-lvl').value;
+                if(cur>=tgt){ alert('Цель больше текущего'); return; }
+                addLevelsToPlan(key, cur, tgt);
+            }));
+        }
+
+        function addLevelsToPlan(heroKey, from, to) {
+            currentPlan = currentPlan.filter(p=>p.heroKey!==heroKey);
+            const th=+thSelect.value, max=heroMaxLevels[th][heroKey]; if(to>max) to=max;
+            const discount = parseFloat(discountInput.value)/100;
+            const data = heroData[heroKey];
+            for(let lvl=from+1; lvl<=to; lvl++) {
+                const lvlData = data[lvl];
+                if (!lvlData) continue;
+                const baseMinutes = lvlData.timeMinutes;
+                const baseCost = lvlData.cost;
+                const discMinutes = Math.round(baseMinutes * (1-discount));
+                const discCost = Math.round(baseCost * (1-discount));
+                currentPlan.push({heroKey, heroDisplay:heroNames[heroKey], from:lvl-1, to:lvl, baseHours: baseMinutes/60, discountedMinutes: discMinutes, cost: discCost});
+            }
+            renderPlanTable();
+            savePlanToStorage();
+        }
+
+        function renderPlanTable() {
+            if(!currentPlan.length){ planBody.innerHTML='<tr><td colspan="8" style="text-align:center;">План пуст</td></tr>'; return; }
+            
+            // Группировка по героям
+            const groups = new Map();
+            currentPlan.forEach((item, idx) => { item.originalIndex = idx; if (!groups.has(item.heroKey)) groups.set(item.heroKey, []); groups.get(item.heroKey).push(item); });
+            
+            planBody.innerHTML = '';
+            let globalIndex = 0;
+            for (let [heroKey, items] of groups) {
+                const headerTr = document.createElement('tr');
+                headerTr.className = `hero-group-header ${heroColorClass[heroKey]}`;
+                headerTr.dataset.group = heroKey;
+                headerTr.style.cursor = 'pointer';
+                headerTr.innerHTML = `<td><span class="toggle-icon">▼</span></td>
+                    <td colspan="7"><strong>${heroNames[heroKey]}</strong> (уровней: ${items.length})</td>`;
+                planBody.appendChild(headerTr);
+
+                items.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = `group-rows ${heroColorClass[heroKey]}`;
+                    tr.dataset.group = heroKey;
+                    tr.innerHTML = `<td></td><td>${++globalIndex}</td><td>${item.heroDisplay}</td><td>${item.from} → ${item.to}</td>
+                        <td>${(item.baseHours).toFixed(1)} ч</td><td>${formatDuration(item.discountedMinutes)}</td>
+                        <td class="cost-cell">${formatCost(item.cost)}</td>
+                        <td><button class="delete-btn" data-index="${item.originalIndex}">🗑️</button></td>`;
+                    planBody.appendChild(tr);
+                });
+
+                headerTr.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+                    const group = this.dataset.group;
+                    const rows = document.querySelectorAll(`#planBody tr[data-group="${group}"]`);
+                    const icon = this.querySelector('.toggle-icon');
+                    rows.forEach(r => r.style.display = r.style.display === 'none' ? '' : 'none');
+                    icon.textContent = icon.textContent === '▼' ? '▶' : '▼';
+                });
+            }
+
+            document.querySelectorAll('#planBody .delete-btn').forEach(b=>b.addEventListener('click', e=>{
+                const idx=e.target.dataset.index;
+                if(idx!==undefined){
+                    currentPlan.splice(idx,1);
+                    renderPlanTable();
+                    savePlanToStorage();
+                }
+            }));
+        }
+
+        function calculateSchedule() {
+            const sH=+nightStartH.value||0, sM=+nightStartM.value||0, eH=+nightEndH.value||7, eM=+nightEndM.value||0;
+            const parallel=+parallelCountInput.value||1;
+            const startTime = parseLocalDateTime(startDateTimeInput.value);
+            const upgrades = [...currentPlan];
+            if(!upgrades.length) return { schedule:[], totalMinutes:0, finalFinish:startTime, totalCost:0 };
+
+            const heroQueues = new Map();
+            upgrades.forEach(up => { if (!heroQueues.has(up.heroKey)) heroQueues.set(up.heroKey, []); heroQueues.get(up.heroKey).push(up); });
+            for (let queue of heroQueues.values()) queue.sort((a,b) => a.to - b.to);
+
+            const schedule = [];
+            let totalMin = 0, totalCostSum = 0;
+            const lastFinishByHero = new Map();
+            const workers = [];
+            for (let i = 0; i < parallel; i++) workers.push(startTime.getTime());
+
+            while (true) {
+                const nextWorkerTime = Math.min(...workers);
+                const availableTime = new Date(nextWorkerTime);
+                const candidates = [];
+                for (let [heroKey, queue] of heroQueues.entries()) {
+                    if (queue.length === 0) continue;
+                    const nextUp = queue[0];
+                    const heroLast = lastFinishByHero.get(heroKey) || startTime;
+                    if (heroLast.getTime() <= availableTime.getTime()) candidates.push({ heroKey, upgrade: nextUp, queue });
+                }
+                if (candidates.length === 0) {
+                    let minHeroTime = Infinity;
+                    for (let [heroKey, queue] of heroQueues.entries()) {
+                        if (queue.length === 0) continue;
+                        const heroLast = lastFinishByHero.get(heroKey) || startTime;
+                        if (heroLast.getTime() > availableTime.getTime()) minHeroTime = Math.min(minHeroTime, heroLast.getTime());
+                    }
+                    if (minHeroTime === Infinity) break;
+                    const earliestWorker = workers.indexOf(Math.min(...workers));
+                    workers[earliestWorker] = minHeroTime;
+                    continue;
+                }
+                candidates.sort((a,b) => a.upgrade.to - b.upgrade.to);
+                const selected = candidates[0];
+                const up = selected.upgrade;
+                const queue = selected.queue;
+                queue.shift();
+                if (queue.length === 0) heroQueues.delete(selected.heroKey);
+
+                const heroLast = lastFinishByHero.get(selected.heroKey) || startTime;
+                let candidateStart = new Date(Math.max(availableTime.getTime(), heroLast.getTime()));
+                const safeStart = findSafeStart(candidateStart, up.discountedMinutes, sH, sM, eH, eM);
+                const finish = new Date(safeStart.getTime() + up.discountedMinutes * 60000);
+                schedule.push({
+                    heroKey: up.heroKey, heroDisplay: up.heroDisplay, from: up.from, to: up.to,
+                    cost: up.cost, start: safeStart, finish, durationMin: up.discountedMinutes,
+                    isForbidden: isForbidden(finish, sH, sM, eH, eM)
+                });
+                lastFinishByHero.set(up.heroKey, finish);
+                const earliestWorkerIdx = workers.indexOf(Math.min(...workers));
+                workers[earliestWorkerIdx] = finish.getTime();
+                totalMin += up.discountedMinutes;
+                totalCostSum += up.cost;
+            }
+            schedule.sort((a,b) => a.start - b.start);
+            const finalFinish = schedule.length ? schedule[schedule.length-1].finish : startTime;
+            return { schedule, totalMinutes: totalMin, finalFinish, totalCost: totalCostSum };
+        }
+
+        function renderSchedule(sched) {
+            if (scheduleUpdateTimer) clearInterval(scheduleUpdateTimer);
+            const { schedule, totalMinutes, finalFinish, totalCost } = sched;
+            scheduleBody.innerHTML='';
+            if(!schedule.length){ 
+                scheduleBody.innerHTML='<tr><td colspan="10">Нет улучшений</td></tr>'; 
+                totalTimeSpan.textContent='—'; totalCostSpan.textContent='—'; finalFinishSpan.textContent='—';
+                return;
+            }
+
+            const groups = new Map();
+            schedule.forEach(item => { if (!groups.has(item.heroKey)) groups.set(item.heroKey, []); groups.get(item.heroKey).push(item); });
+
+            let globalIndex = 0;
+            for (let [heroKey, items] of groups) {
+                const headerTr = document.createElement('tr');
+                headerTr.className = `hero-group-header ${heroColorClass[heroKey]}`;
+                headerTr.dataset.group = heroKey;
+                headerTr.style.cursor = 'pointer';
+                headerTr.innerHTML = `<td><span class="toggle-icon">▼</span></td>
+                    <td colspan="9"><strong>${heroNames[heroKey]}</strong> (уровней: ${items.length})</td>`;
+                scheduleBody.appendChild(headerTr);
+
+                items.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = `group-rows ${heroColorClass[heroKey]}`;
+                    tr.dataset.group = heroKey;
+                    const startStr = toMoscowString(item.start);
+                    const finishStr = toMoscowString(item.finish);
+                    const status = item.isForbidden ? '<span class="night-warning">⚠️ Ночной финиш</span>' : '<span class="ok-badge">✅ Дневное завершение</span>';
+                    tr.innerHTML = `<td></td><td>${++globalIndex}</td><td>${item.heroDisplay}</td><td>${item.from} → ${item.to}</td>
+                        <td class="cost-cell">${formatCost(item.cost)}</td>
+                        <td><input type="text" class="editable-time start-time-input" data-global-index="${globalIndex-1}" value="${startStr}"></td>
+                        <td>${finishStr}</td><td>${formatDuration(item.durationMin)}</td>
+                        <td class="timer-cell" data-finish="${item.finish.getTime()}">--</td>
+                        <td>${status}</td>`;
+                    scheduleBody.appendChild(tr);
+                });
+
+                headerTr.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'INPUT') return;
+                    const group = this.dataset.group;
+                    const rows = document.querySelectorAll(`tr[data-group="${group}"]`);
+                    const icon = this.querySelector('.toggle-icon');
+                    rows.forEach(r => { if (r !== this) r.style.display = r.style.display === 'none' ? '' : 'none'; });
+                    icon.textContent = icon.textContent === '▼' ? '▶' : '▼';
+                });
+            }
+
+            document.querySelectorAll('.start-time-input').forEach(inp => inp.addEventListener('change', function() {
+                const globalIdx = +this.dataset.globalIndex;
+                const newVal = this.value;
+                const m = newVal.match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/);
+                if(!m){ alert('Формат ДД.ММ.ГГГГ ЧЧ:ММ'); renderFullSchedule(); return; }
+                const [,d,mon,y,hh,mm] = m;
+                const mskDate = new Date(Date.UTC(y, mon-1, d, hh, mm));
+                const localDate = new Date(mskDate.getTime() - MOSCOW_OFFSET*60000);
+                if(isNaN(localDate)) return;
+                recalcFromIndex(globalIdx, localDate);
+            }));
+
+            totalTimeSpan.textContent = formatDuration(totalMinutes);
+            totalCostSpan.textContent = formatCost(totalCost);
+            finalFinishSpan.textContent = toMoscowString(finalFinish);
+
+            function updateTimers() {
+                const now = Date.now();
+                document.querySelectorAll('.timer-cell').forEach(cell => {
+                    const finishTime = parseInt(cell.dataset.finish);
+                    if (isNaN(finishTime)) return;
+                    const diff = finishTime - now;
+                    if (diff <= 0) { cell.textContent = 'Завершено'; cell.style.color = '#7ae07a'; }
+                    else {
+                        const days = Math.floor(diff / 86400000);
+                        const hours = Math.floor((diff % 86400000) / 3600000);
+                        const minutes = Math.floor((diff % 3600000) / 60000);
+                        const seconds = Math.floor((diff % 60000) / 1000);
+                        cell.textContent = `${days?days+'д ':''}${hours}ч ${minutes}м ${seconds}с`;
+                        cell.style.color = '#f7d44a';
+                    }
+                });
+            }
+            updateTimers();
+            scheduleUpdateTimer = setInterval(updateTimers, 1000);
+        }
+
+        function recalcFromIndex(globalIdx, newStartLocal) {
+            const sH=+nightStartH.value||0, sM=+nightStartM.value||0, eH=+nightEndH.value||7, eM=+nightEndM.value||0;
+            const parallel=+parallelCountInput.value||1;
+            const startTime = parseLocalDateTime(startDateTimeInput.value);
+            const upgrades = [...currentPlan];
+            if (globalIdx >= upgrades.length) return;
+            const fixedUpgrade = upgrades[globalIdx];
+
+            const heroQueues = new Map();
+            upgrades.forEach(up => { if (!heroQueues.has(up.heroKey)) heroQueues.set(up.heroKey, []); heroQueues.get(up.heroKey).push(up); });
+            for (let queue of heroQueues.values()) queue.sort((a,b) => a.to - b.to);
+
+            const schedule = [];
+            let totalMin = 0, totalCostSum = 0;
+            const lastFinishByHero = new Map();
+            const workers = [];
+            for (let i = 0; i < parallel; i++) workers.push(startTime.getTime());
+            let fixedProcessed = false;
+
+            while (true) {
+                const nextWorkerTime = Math.min(...workers);
+                const availableTime = new Date(nextWorkerTime);
+                const candidates = [];
+                for (let [heroKey, queue] of heroQueues.entries()) {
+                    if (queue.length === 0) continue;
+                    const nextUp = queue[0];
+                    if (nextUp === fixedUpgrade && !fixedProcessed) {
+                        const heroLast = lastFinishByHero.get(heroKey) || startTime;
+                        let candidateStart = new Date(Math.max(newStartLocal.getTime(), heroLast.getTime()));
+                        const safeStart = findSafeStart(candidateStart, nextUp.discountedMinutes, sH, sM, eH, eM);
+                        const finish = new Date(safeStart.getTime() + nextUp.discountedMinutes * 60000);
+                        schedule.push({
+                            heroKey, heroDisplay: nextUp.heroDisplay, from: nextUp.from, to: nextUp.to,
+                            cost: nextUp.cost, start: safeStart, finish, durationMin: nextUp.discountedMinutes,
+                            isForbidden: isForbidden(finish, sH, sM, eH, eM)
+                        });
+                        lastFinishByHero.set(heroKey, finish);
+                        const earliestWorkerIdx = workers.indexOf(Math.min(...workers));
+                        workers[earliestWorkerIdx] = finish.getTime();
+                        totalMin += nextUp.discountedMinutes;
+                        totalCostSum += nextUp.cost;
+                        queue.shift();
+                        if (queue.length === 0) heroQueues.delete(heroKey);
+                        fixedProcessed = true;
+                        continue;
+                    }
+                    const heroLast = lastFinishByHero.get(heroKey) || startTime;
+                    if (heroLast.getTime() <= availableTime.getTime()) candidates.push({ heroKey, upgrade: nextUp, queue });
+                }
+                if (candidates.length === 0) {
+                    let minHeroTime = Infinity;
+                    for (let [heroKey, queue] of heroQueues.entries()) {
+                        if (queue.length === 0) continue;
+                        const heroLast = lastFinishByHero.get(heroKey) || startTime;
+                        if (heroLast.getTime() > availableTime.getTime()) minHeroTime = Math.min(minHeroTime, heroLast.getTime());
+                    }
+                    if (minHeroTime === Infinity) break;
+                    const earliestWorker = workers.indexOf(Math.min(...workers));
+                    workers[earliestWorker] = minHeroTime;
+                    continue;
+                }
+                candidates.sort((a,b) => a.upgrade.to - b.upgrade.to);
+                const selected = candidates[0];
+                const up = selected.upgrade;
+                const queue = selected.queue;
+                queue.shift();
+                if (queue.length === 0) heroQueues.delete(selected.heroKey);
+
+                const heroLast = lastFinishByHero.get(selected.heroKey) || startTime;
+                let candidateStart = new Date(Math.max(availableTime.getTime(), heroLast.getTime()));
+                const safeStart = findSafeStart(candidateStart, up.discountedMinutes, sH, sM, eH, eM);
+                const finish = new Date(safeStart.getTime() + up.discountedMinutes * 60000);
+                schedule.push({
+                    heroKey: up.heroKey, heroDisplay: up.heroDisplay, from: up.from, to: up.to,
+                    cost: up.cost, start: safeStart, finish, durationMin: up.discountedMinutes,
+                    isForbidden: isForbidden(finish, sH, sM, eH, eM)
+                });
+                lastFinishByHero.set(up.heroKey, finish);
+                const earliestWorkerIdx = workers.indexOf(Math.min(...workers));
+                workers[earliestWorkerIdx] = finish.getTime();
+                totalMin += up.discountedMinutes;
+                totalCostSum += up.cost;
+            }
+            schedule.sort((a,b) => a.start - b.start);
+            const finalFinish = schedule.length ? schedule[schedule.length-1].finish : newStartLocal;
+            renderSchedule({ schedule, totalMinutes: totalMin, finalFinish, totalCost: totalCostSum });
+        }
+
+        function renderFullSchedule() { 
+            if (scheduleUpdateTimer) clearInterval(scheduleUpdateTimer);
+            const s=calculateSchedule(); 
+            renderSchedule(s); 
+        }
+
+        function resetPlan() { 
+            if (scheduleUpdateTimer) clearInterval(scheduleUpdateTimer);
+            currentPlan=[]; 
+            renderPlanTable(); 
+            renderHeroCards(); 
+            scheduleBody.innerHTML='<tr><td colspan="10" style="text-align:center;">Нажмите «Рассчитать»</td></tr>';
+            totalTimeSpan.textContent='—'; totalCostSpan.textContent='—'; finalFinishSpan.textContent='—';
+            savePlanToStorage();
+        }
+
+        // Инициализация
+        loadPlanFromStorage();
+        renderHeroCards();
+        renderPlanTable();
+
+        thSelect.addEventListener('change', ()=>{ renderHeroCards(); resetPlan(); });
+        resetTargetsBtn.addEventListener('click', resetPlan);
+        recalcBtn.addEventListener('click', renderFullSchedule);
+        discountInput.addEventListener('change', ()=>{
+            if(currentPlan.length){
+                const d=parseFloat(discountInput.value)/100;
+                currentPlan.forEach(p=>{
+                    const baseData = heroData[p.heroKey][p.to];
+                    if (baseData) {
+                        p.discountedMinutes = Math.round(baseData.timeMinutes * (1-d));
+                        p.cost = Math.round(baseData.cost * (1-d));
+                    }
+                });
+                renderPlanTable();
+                savePlanToStorage();
+            }
+        });
+
+        // Автоматический расчёт при загрузке, если есть план
+        window.addEventListener('load', ()=>{
+            if (currentPlan.length) renderFullSchedule();
+        });
+    })();
+</script>
+</body>
+</html>
