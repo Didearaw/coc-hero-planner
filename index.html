@@ -554,7 +554,9 @@
 
         let currentPlan = [];
         let scheduleUpdateTimer = null;
-        let collapsedGroups = new Set();
+        // Раздельное хранение свёрнутых групп для плана и графика
+        let collapsedPlanGroups = new Set();
+        let collapsedScheduleGroups = new Set();
         let toastTimer = null;
         const STORAGE_KEY = 'cocHeroPlanV5';
 
@@ -656,7 +658,8 @@
                     nightStartM: nightStartM.value,
                     nightEndH: nightEndH.value,
                     nightEndM: nightEndM.value,
-                    collapsedGroups: Array.from(collapsedGroups)
+                    collapsedPlanGroups: Array.from(collapsedPlanGroups),
+                    collapsedScheduleGroups: Array.from(collapsedScheduleGroups)
                 }
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -681,7 +684,8 @@
                         if(s.nightStartM) nightStartM.value = s.nightStartM;
                         if(s.nightEndH) nightEndH.value = s.nightEndH;
                         if(s.nightEndM) nightEndM.value = s.nightEndM;
-                        if(s.collapsedGroups) collapsedGroups = new Set(s.collapsedGroups);
+                        if(s.collapsedPlanGroups) collapsedPlanGroups = new Set(s.collapsedPlanGroups);
+                        if(s.collapsedScheduleGroups) collapsedScheduleGroups = new Set(s.collapsedScheduleGroups);
                         return true;
                     }
                 } catch(e) { console.error(e); }
@@ -789,7 +793,7 @@
             planBody.innerHTML = '';
             let globalIndex = 0;
             for (let [heroKey, items] of groups) {
-                const isCollapsed = collapsedGroups.has(heroKey);
+                const isCollapsed = collapsedPlanGroups.has(heroKey);
                 const headerTr = document.createElement('tr');
                 headerTr.className = `hero-group-header ${heroColorClass[heroKey]} ${isCollapsed ? 'collapsed' : ''}`;
                 headerTr.dataset.group = heroKey;
@@ -810,7 +814,7 @@
             }
         }
 
-        // Делегирование событий для сворачивания групп и удаления
+        // Делегирование событий для сворачивания групп и удаления в ПЛАНЕ
         planBody.addEventListener('click', e => {
             const header = e.target.closest('.hero-group-header');
             if (header) {
@@ -820,7 +824,7 @@
                 const isCollapsed = header.classList.toggle('collapsed');
                 rows.forEach(r => { if (r !== header) r.style.display = isCollapsed ? 'none' : ''; });
                 icon.textContent = isCollapsed ? '▶' : '▼';
-                isCollapsed ? collapsedGroups.add(group) : collapsedGroups.delete(group);
+                isCollapsed ? collapsedPlanGroups.add(group) : collapsedPlanGroups.delete(group);
                 saveState();
                 return;
             }
@@ -838,6 +842,7 @@
             }
         });
 
+        // Делегирование для ГРАФИКА (сворачивание и изменение времени)
         scheduleBody.addEventListener('click', e => {
             const header = e.target.closest('.hero-group-header');
             if (header) {
@@ -847,7 +852,7 @@
                 const isCollapsed = header.classList.toggle('collapsed');
                 rows.forEach(r => { if (r !== header) r.style.display = isCollapsed ? 'none' : ''; });
                 icon.textContent = isCollapsed ? '▶' : '▼';
-                isCollapsed ? collapsedGroups.add(group) : collapsedGroups.delete(group);
+                isCollapsed ? collapsedScheduleGroups.add(group) : collapsedScheduleGroups.delete(group);
                 saveState();
             }
         });
@@ -948,7 +953,7 @@
 
             let globalIndex = 0;
             for (let [heroKey, items] of groups) {
-                const isCollapsed = collapsedGroups.has(heroKey);
+                const isCollapsed = collapsedScheduleGroups.has(heroKey);
                 const headerTr = document.createElement('tr');
                 headerTr.className = `hero-group-header ${heroColorClass[heroKey]} ${isCollapsed ? 'collapsed' : ''}`;
                 headerTr.dataset.group = heroKey;
@@ -1120,7 +1125,8 @@
         function resetPlan() { 
             if (scheduleUpdateTimer) clearInterval(scheduleUpdateTimer);
             currentPlan = []; 
-            collapsedGroups.clear();
+            collapsedPlanGroups.clear();
+            collapsedScheduleGroups.clear();
             renderPlanTable(); 
             renderHeroCards(); 
             scheduleBody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;">Нажмите «Рассчитать»</td></tr>';
