@@ -554,7 +554,8 @@
 
         let currentPlan = [];
         let scheduleUpdateTimer = null;
-        let collapsedGroups = new Set(); // Хранит ключи свернутых групп
+        let collapsedGroups = new Set();
+        let toastTimer = null;
         const STORAGE_KEY = 'cocHeroPlanV5';
 
         const thSelect = document.getElementById('thSelect');
@@ -576,37 +577,15 @@
         const topClock = document.getElementById('topClock');
 
         const MOSCOW_OFFSET = 3 * 60;
-        let originalTitle = document.title;
+        const originalTitle = document.title;
         
         const generateUid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-        // Звуковое уведомление (Web Audio API)
-        let audioCtx = null;
-        function playNotificationSound() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
-            osc.frequency.exponentialRampToValueAtTime(1046.5, audioCtx.currentTime + 0.1); // C6
-            
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-            
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.5);
-        }
-
         function showToast(message) {
+            if (toastTimer) clearTimeout(toastTimer);
             toast.textContent = message;
-            toast.className = "show";
-            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+            toast.classList.add("show");
+            toastTimer = setTimeout(() => { toast.classList.remove("show"); }, 3000);
         }
 
         function toLocalDateTimeString(d) { 
@@ -638,39 +617,21 @@
         
         function findSafeStart(ref, dur, sH,sM, eH,eM) { 
             let c = new Date(ref);
-            const s = sH*60 + sM;
-            const e = eH*60 + eM;
-            const safetyLimit = 100000; 
-
+            const safetyLimit = 10000; 
             for (let i = 0; i < safetyLimit; i++) {
                 let finish = new Date(c.getTime() + dur * 60000);
-                
-                if (!isForbidden(finish, sH, sM, eH, eM)) {
-                    return c;
-                }
-
+                if (!isForbidden(finish, sH, sM, eH, eM)) return c;
                 const finishMin = minutesFromMidnightMsk(finish);
+                const s = sH*60 + sM, e = eH*60 + eM;
                 let deltaMin = 0;
-
                 if (e > s) {
-                    if (finishMin >= s && finishMin < e) {
-                        deltaMin = e - finishMin;
-                    }
+                    if (finishMin >= s && finishMin < e) deltaMin = e - finishMin;
                 } else {
                     if (finishMin >= s || finishMin < e) {
-                        if (finishMin >= s) {
-                            deltaMin = (1440 - finishMin) + e; 
-                        } else {
-                            deltaMin = e - finishMin;
-                        }
+                        deltaMin = (finishMin >= s) ? (1440 - finishMin) + e : e - finishMin;
                     }
                 }
-
-                if (deltaMin > 0) {
-                    c = new Date(c.getTime() + deltaMin * 60000);
-                } else {
-                    c = new Date(c.getTime() + 60000);
-                }
+                c = new Date(c.getTime() + (deltaMin || 1) * 60000);
             }
             return ref;
         }
@@ -683,7 +644,6 @@
         }
         function formatCost(c) { return c.toLocaleString('ru-RU'); }
 
-        // ---------- СОХРАНЕНИЕ СОСТОЯНИЯ (ВКЛАДКИ + НАСТРОЙКИ) ----------
         function saveState() {
             const data = {
                 plan: currentPlan,
@@ -696,7 +656,7 @@
                     nightStartM: nightStartM.value,
                     nightEndH: nightEndH.value,
                     nightEndM: nightEndM.value,
-                    collapsedGroups: Array.from(collapsedGroups) // Сохраняем список свернутых групп
+                    collapsedGroups: Array.from(collapsedGroups)
                 }
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -707,14 +667,10 @@
             if (saved) {
                 try {
                     const data = JSON.parse(saved);
-                    
-                    // Восстанавливаем план
                     if (data.plan) {
                         currentPlan = data.plan;
                         currentPlan.forEach(p => { if(!p.uid) p.uid = generateUid(); });
                     }
-                    
-                    // Восстанавливаем настройки
                     if (data.settings) {
                         const s = data.settings;
                         if(s.th) thSelect.value = s.th;
@@ -725,17 +681,12 @@
                         if(s.nightStartM) nightStartM.value = s.nightStartM;
                         if(s.nightEndH) nightEndH.value = s.nightEndH;
                         if(s.nightEndM) nightEndM.value = s.nightEndM;
-                        
-                        // Восстанавливаем свернутые вкладки
-                        if(s.collapsedGroups && Array.isArray(s.collapsedGroups)) {
-                            collapsedGroups = new Set(s.collapsedGroups);
-                        }
-                        
-                        return true; 
+                        if(s.collapsedGroups) collapsedGroups = new Set(s.collapsedGroups);
+                        return true;
                     }
                 } catch(e) { console.error(e); }
             }
-            return false; 
+            return false;
         }
 
         function setDefaultStart() { 
@@ -759,7 +710,6 @@
         });
 
         const hasSettings = loadState();
-        
         if(!hasSettings || !startDateTimeInput.value) {
             setDefaultStart();
             saveState();
@@ -780,10 +730,8 @@
                 const card=document.createElement('div'); 
                 card.className='hero-card'; 
                 card.dataset.key=h.key;
-                
                 const heroUps = currentPlan.filter(p=>p.heroKey===h.key);
                 const cur = heroUps.length ? Math.max(...heroUps.map(u=>u.to)) : 1;
-                
                 card.innerHTML=`<h3>${h.name}</h3>
                     <div class="hero-level-row"><span>Текущий:</span><input type="number" class="current-lvl" value="${cur}" min="1" max="${h.maxLvl}" onfocus="this.select()"></div>
                     <div class="hero-level-row"><span>Цель:</span><input type="number" class="target-lvl" value="${h.maxLvl}" min="1" max="${h.maxLvl}" onfocus="this.select()"></div>
@@ -791,13 +739,18 @@
                     <button class="btn-small add-to-plan">📌 Добавить</button>`;
                 heroesContainer.appendChild(card);
             });
-            document.querySelectorAll('.add-to-plan').forEach(b=>b.addEventListener('click', e=>{
-                const card=e.target.closest('.hero-card'), key=card.dataset.key;
-                const cur=+card.querySelector('.current-lvl').value, tgt=+card.querySelector('.target-lvl').value;
-                if(tgt<=cur){ showToast('Цель должна быть больше текущего'); return; }
-                addLevelsToPlan(key, cur, tgt);
-            }));
         }
+
+        heroesContainer.addEventListener('click', e => {
+            const btn = e.target.closest('.add-to-plan');
+            if (!btn) return;
+            const card = btn.closest('.hero-card');
+            const key = card.dataset.key;
+            const cur = +card.querySelector('.current-lvl').value;
+            const tgt = +card.querySelector('.target-lvl').value;
+            if (tgt <= cur) { showToast('Цель должна быть больше текущего'); return; }
+            addLevelsToPlan(key, cur, tgt);
+        });
 
         function addLevelsToPlan(heroKey, from, to) {
             currentPlan = currentPlan.filter(p=>p.heroKey!==heroKey); 
@@ -813,13 +766,8 @@
                 const discMinutes = Math.round(baseMinutes * (1-discount));
                 const discCost = Math.round(baseCost * (1-discount));
                 currentPlan.push({
-                    heroKey, 
-                    heroDisplay:heroNames[heroKey], 
-                    from:lvl-1, 
-                    to:lvl, 
-                    baseHours: baseMinutes/60, 
-                    discountedMinutes: discMinutes, 
-                    cost: discCost,
+                    heroKey, heroDisplay:heroNames[heroKey], from:lvl-1, to:lvl,
+                    baseHours: baseMinutes/60, discountedMinutes: discMinutes, cost: discCost,
                     uid: generateUid()
                 });
             }
@@ -828,53 +776,26 @@
             showToast(`Добавлены уровни: ${from} ➝ ${to}`);
         }
 
-        // Обработчик сворачивания (универсальный для обоих таблиц)
-        function setupGroupToggle(headerTr, heroKey, tableBodyId) {
-            headerTr.addEventListener('click', function(e) {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
-                
-                const group = this.dataset.group;
-                const rows = document.querySelectorAll(`#${tableBodyId} tr[data-group="${group}"]`);
-                const icon = this.querySelector('.toggle-icon');
-                const isCollapsed = this.classList.toggle('collapsed');
-                
-                rows.forEach(r => { if (r !== this) r.style.display = isCollapsed ? 'none' : ''; });
-                icon.textContent = isCollapsed ? '▶' : '▼';
-                
-                // Логика сохранения вкладок
-                if (isCollapsed) {
-                    collapsedGroups.add(heroKey);
-                } else {
-                    collapsedGroups.delete(heroKey);
-                }
-                saveState();
-            });
-        }
-
         function renderPlanTable() {
             if(!currentPlan.length){ 
                 planBody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;">План пуст. Добавьте уровни выше.</td></tr>'; 
                 return; 
             }
-            
             const groups = new Map();
             currentPlan.forEach((item) => { 
                 if (!groups.has(item.heroKey)) groups.set(item.heroKey, []); 
                 groups.get(item.heroKey).push(item); 
             });
-            
             planBody.innerHTML = '';
             let globalIndex = 0;
             for (let [heroKey, items] of groups) {
                 const isCollapsed = collapsedGroups.has(heroKey);
-
                 const headerTr = document.createElement('tr');
                 headerTr.className = `hero-group-header ${heroColorClass[heroKey]} ${isCollapsed ? 'collapsed' : ''}`;
                 headerTr.dataset.group = heroKey;
                 headerTr.innerHTML = `<td><span class="toggle-icon">${isCollapsed ? '▶' : '▼'}</span></td>
                     <td colspan="7"><strong>${heroNames[heroKey]}</strong> (${items.length} ур.)</td>`;
                 planBody.appendChild(headerTr);
-
                 items.forEach(item => {
                     const tr = document.createElement('tr');
                     tr.className = `group-rows ${heroColorClass[heroKey]}`;
@@ -886,22 +807,64 @@
                         <td><button class="delete-btn" data-uid="${item.uid}" title="Удалить">🗑️</button></td>`;
                     planBody.appendChild(tr);
                 });
-
-                setupGroupToggle(headerTr, heroKey, 'planBody');
             }
-
-            document.querySelectorAll('#planBody .delete-btn').forEach(b=>b.addEventListener('click', e=>{
-                e.stopPropagation();
-                const uid = e.target.dataset.uid;
-                const idx = currentPlan.findIndex(p => p.uid === uid);
-                if(idx !== -1){
-                    currentPlan.splice(idx,1);
-                    renderPlanTable();
-                    renderHeroCards(); 
-                    saveState();
-                }
-            }));
         }
+
+        // Делегирование событий для сворачивания групп и удаления
+        planBody.addEventListener('click', e => {
+            const header = e.target.closest('.hero-group-header');
+            if (header) {
+                const group = header.dataset.group;
+                const rows = document.querySelectorAll(`#planBody tr[data-group="${group}"]`);
+                const icon = header.querySelector('.toggle-icon');
+                const isCollapsed = header.classList.toggle('collapsed');
+                rows.forEach(r => { if (r !== header) r.style.display = isCollapsed ? 'none' : ''; });
+                icon.textContent = isCollapsed ? '▶' : '▼';
+                isCollapsed ? collapsedGroups.add(group) : collapsedGroups.delete(group);
+                saveState();
+                return;
+            }
+            const deleteBtn = e.target.closest('.delete-btn');
+            if (deleteBtn) {
+                const uid = deleteBtn.dataset.uid;
+                const idx = currentPlan.findIndex(p => p.uid === uid);
+                if (idx !== -1) {
+                    currentPlan.splice(idx, 1);
+                    renderPlanTable();
+                    renderHeroCards();
+                    saveState();
+                    showToast("Уровень удалён");
+                }
+            }
+        });
+
+        scheduleBody.addEventListener('click', e => {
+            const header = e.target.closest('.hero-group-header');
+            if (header) {
+                const group = header.dataset.group;
+                const rows = document.querySelectorAll(`#scheduleBody tr[data-group="${group}"]`);
+                const icon = header.querySelector('.toggle-icon');
+                const isCollapsed = header.classList.toggle('collapsed');
+                rows.forEach(r => { if (r !== header) r.style.display = isCollapsed ? 'none' : ''; });
+                icon.textContent = isCollapsed ? '▶' : '▼';
+                isCollapsed ? collapsedGroups.add(group) : collapsedGroups.delete(group);
+                saveState();
+            }
+        });
+
+        scheduleBody.addEventListener('change', e => {
+            const input = e.target.closest('.start-time-input');
+            if (!input) return;
+            const uid = input.dataset.uid;
+            const newVal = input.value;
+            const m = newVal.match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/);
+            if(!m){ alert('Формат ДД.ММ.ГГГГ ЧЧ:ММ'); renderFullSchedule(); return; }
+            const [,d,mon,y,hh,mm] = m;
+            const mskDateAsUTC = new Date(Date.UTC(y, mon-1, d, hh, mm));
+            const localDate = new Date(mskDateAsUTC.getTime() - MOSCOW_OFFSET*60000);
+            if(isNaN(localDate.getTime())) return;
+            recalcFromUid(uid, localDate);
+        });
 
         function calculateSchedule() {
             const sH=+nightStartH.value||0, sM=+nightStartM.value||0, eH=+nightEndH.value||7, eM=+nightEndM.value||0;
@@ -954,8 +917,7 @@
                 const safeStart = findSafeStart(candidateStart, up.discountedMinutes, sH, sM, eH, eM);
                 const finish = new Date(safeStart.getTime() + up.discountedMinutes * 60000);
                 schedule.push({
-                    uid: up.uid, 
-                    heroKey: up.heroKey, heroDisplay: up.heroDisplay, from: up.from, to: up.to,
+                    uid: up.uid, heroKey: up.heroKey, heroDisplay: up.heroDisplay, from: up.from, to: up.to,
                     cost: up.cost, start: safeStart, finish, durationMin: up.discountedMinutes,
                     isForbidden: isForbidden(finish, sH, sM, eH, eM)
                 });
@@ -977,7 +939,7 @@
             if(!schedule.length){ 
                 scheduleBody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;">Нет улучшений</td></tr>'; 
                 totalTimeSpan.textContent='—'; totalCostSpan.textContent='—'; finalFinishSpan.textContent='—';
-                document.title = originalTitle; // Сброс тайтла если пусто
+                document.title = originalTitle;
                 return;
             }
 
@@ -985,11 +947,8 @@
             schedule.forEach(item => { if (!groups.has(item.heroKey)) groups.set(item.heroKey, []); groups.get(item.heroKey).push(item); });
 
             let globalIndex = 0;
-            let anyActive = false; // Проверка для тайтла
-
             for (let [heroKey, items] of groups) {
                 const isCollapsed = collapsedGroups.has(heroKey);
-
                 const headerTr = document.createElement('tr');
                 headerTr.className = `hero-group-header ${heroColorClass[heroKey]} ${isCollapsed ? 'collapsed' : ''}`;
                 headerTr.dataset.group = heroKey;
@@ -1013,22 +972,7 @@
                         <td>${status}</td>`;
                     scheduleBody.appendChild(tr);
                 });
-
-                setupGroupToggle(headerTr, heroKey, 'scheduleBody');
             }
-
-            document.querySelectorAll('.start-time-input').forEach(inp => inp.addEventListener('change', function() {
-                const uid = this.dataset.uid;
-                const newVal = this.value;
-                const m = newVal.match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/);
-                if(!m){ alert('Формат ДД.ММ.ГГГГ ЧЧ:ММ'); renderFullSchedule(); return; }
-                const [,d,mon,y,hh,mm] = m;
-                const mskDateAsUTC = new Date(Date.UTC(y, mon-1, d, hh, mm));
-                const localDate = new Date(mskDateAsUTC.getTime() - MOSCOW_OFFSET*60000);
-                
-                if(isNaN(localDate.getTime())) return;
-                recalcFromUid(uid, localDate);
-            }));
 
             totalTimeSpan.textContent = formatDuration(totalMinutes);
             totalCostSpan.textContent = formatCost(totalCost);
@@ -1036,36 +980,21 @@
 
             function updateTimers() {
                 const now = Date.now();
-                let hasFinished = false;
-                
                 document.querySelectorAll('.timer-cell').forEach(cell => {
                     const finishTime = parseInt(cell.dataset.finish);
                     if (isNaN(finishTime)) return;
                     const diff = finishTime - now;
                     if (diff <= 0) { 
-                        if (cell.textContent !== 'Готово') {
-                            cell.textContent = 'Готово'; 
-                            cell.style.color = '#7ae07a';
-                            playNotificationSound(); // Звук
-                            hasFinished = true;
-                        }
-                    }
-                    else {
+                        if (cell.textContent !== 'Готово') cell.textContent = 'Готово';
+                        cell.style.color = '#7ae07a';
+                    } else {
                         const days = Math.floor(diff / 86400000);
                         const hours = Math.floor((diff % 86400000) / 3600000);
                         const minutes = Math.floor((diff % 3600000) / 60000);
                         cell.textContent = days>0 ? `${days}д ${hours}ч ${minutes}м` : `${hours}ч ${minutes}м`;
                         cell.style.color = '#f7d44a';
-                        anyActive = true;
                     }
                 });
-                
-                // Мигание тайтла вкладки
-                if (hasFinished) {
-                    document.title = "⚠️ ГОТОВО! " + originalTitle;
-                } else if (anyActive) {
-                    document.title = originalTitle;
-                }
             }
             updateTimers();
             scheduleUpdateTimer = setInterval(updateTimers, 1000);
@@ -1076,7 +1005,6 @@
             const parallel=parseInt(parallelCountInput.value, 10) || 1;
             const startTime = parseLocalDateTime(startDateTimeInput.value);
             const upgrades = [...currentPlan];
-            
             const fixedUpgradeIndex = upgrades.findIndex(u => u.uid === uid);
             if (fixedUpgradeIndex === -1) return;
 
@@ -1104,45 +1032,35 @@
                 for (let [heroKey, queue] of heroQueues.entries()) {
                     if (queue.length === 0) continue;
                     const nextUp = queue[0];
-
                     if (nextUp._isFixed && !fixedProcessed) {
                         const heroLast = lastFinishByHero.get(heroKey) || startTime;
                         let candidateStart = new Date(Math.max(newStartLocal.getTime(), heroLast.getTime()));
-                        
                         const safeStart = findSafeStart(candidateStart, nextUp.discountedMinutes, sH, sM, eH, eM);
                         const finish = new Date(safeStart.getTime() + nextUp.discountedMinutes * 60000);
-                        
                         schedule.push({
-                            uid: nextUp.uid,
-                            heroKey, heroDisplay: nextUp.heroDisplay, from: nextUp.from, to: nextUp.to,
+                            uid: nextUp.uid, heroKey, heroDisplay: nextUp.heroDisplay, from: nextUp.from, to: nextUp.to,
                             cost: nextUp.cost, start: safeStart, finish, durationMin: nextUp.discountedMinutes,
                             isForbidden: isForbidden(finish, sH, sM, eH, eM)
                         });
                         lastFinishByHero.set(heroKey, finish);
-                        
                         const earliestWorkerIdx = workers.indexOf(Math.min(...workers));
                         workers[earliestWorkerIdx] = finish.getTime();
-                        
                         totalMin += nextUp.discountedMinutes;
                         totalCostSum += nextUp.cost;
-                        
                         queue.shift();
                         if (queue.length === 0) heroQueues.delete(heroKey);
                         fixedProcessed = true;
                         foundFixed = true;
                         continue;
                     }
-
                     const heroLast = lastFinishByHero.get(heroKey) || startTime;
                     if (heroLast.getTime() <= availableTime.getTime()) candidates.push({ heroKey, upgrade: nextUp, queue });
                 }
-                
                 if (foundFixed) continue;
-
                 if (candidates.length === 0) {
                     if (!fixedProcessed) {
                         let minHeroTime = Infinity;
-                         for (let [heroKey, queue] of heroQueues.entries()) {
+                        for (let [heroKey, queue] of heroQueues.entries()) {
                             if (queue.length === 0) continue;
                             if (queue[0]._isFixed) {
                                 const heroLast = lastFinishByHero.get(heroKey) || startTime;
@@ -1155,7 +1073,6 @@
                             continue;
                         }
                     }
-
                     let minHeroTime = Infinity;
                     for (let [heroKey, queue] of heroQueues.entries()) {
                         if (queue.length === 0) continue;
@@ -1167,21 +1084,18 @@
                     workers[earliestWorker] = minHeroTime;
                     continue;
                 }
-                
                 candidates.sort((a,b) => a.upgrade.to - b.upgrade.to);
                 const selected = candidates[0];
                 const up = selected.upgrade;
                 const queue = selected.queue;
                 queue.shift();
                 if (queue.length === 0) heroQueues.delete(selected.heroKey);
-
                 const heroLast = lastFinishByHero.get(selected.heroKey) || startTime;
                 let candidateStart = new Date(Math.max(availableTime.getTime(), heroLast.getTime()));
                 const safeStart = findSafeStart(candidateStart, up.discountedMinutes, sH, sM, eH, eM);
                 const finish = new Date(safeStart.getTime() + up.discountedMinutes * 60000);
                 schedule.push({
-                    uid: up.uid,
-                    heroKey: up.heroKey, heroDisplay: up.heroDisplay, from: up.from, to: up.to,
+                    uid: up.uid, heroKey: up.heroKey, heroDisplay: up.heroDisplay, from: up.from, to: up.to,
                     cost: up.cost, start: safeStart, finish, durationMin: up.discountedMinutes,
                     isForbidden: isForbidden(finish, sH, sM, eH, eM)
                 });
@@ -1199,22 +1113,22 @@
 
         function renderFullSchedule() { 
             if (scheduleUpdateTimer) clearInterval(scheduleUpdateTimer);
-            const s=calculateSchedule(); 
+            const s = calculateSchedule(); 
             renderSchedule(s); 
         }
 
         function resetPlan() { 
             if (scheduleUpdateTimer) clearInterval(scheduleUpdateTimer);
-            currentPlan=[]; 
+            currentPlan = []; 
+            collapsedGroups.clear();
             renderPlanTable(); 
             renderHeroCards(); 
-            scheduleBody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;">Нажмите «Рассчитать»</td></tr>';
-            totalTimeSpan.textContent='—'; totalCostSpan.textContent='—'; finalFinishSpan.textContent='—';
+            scheduleBody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;">Нажмите «Рассчитать»</td></tr>';
+            totalTimeSpan.textContent = '—'; totalCostSpan.textContent = '—'; finalFinishSpan.textContent = '—';
             saveState();
             showToast("План сброшен");
         }
 
-        // Рендер при загрузке
         renderHeroCards();
         renderPlanTable();
 
@@ -1222,15 +1136,10 @@
         resetTargetsBtn.addEventListener('click', resetPlan);
         recalcBtn.addEventListener('click', renderFullSchedule);
         
-        discountInput.addEventListener('change', saveState);
-        parallelCountInput.addEventListener('change', saveState);
-        startDateTimeInput.addEventListener('change', saveState);
-        [nightStartH, nightStartM, nightEndH, nightEndM].forEach(el => el.addEventListener('change', saveState));
-
-        discountInput.addEventListener('change', ()=>{
+        discountInput.addEventListener('change', () => {
             if(currentPlan.length){
-                const d=parseFloat(discountInput.value)/100;
-                currentPlan.forEach(p=>{
+                const d = parseFloat(discountInput.value)/100;
+                currentPlan.forEach(p => {
                     const baseData = heroData[p.heroKey][p.to];
                     if (baseData) {
                         p.discountedMinutes = Math.round(baseData.timeMinutes * (1-d));
@@ -1238,9 +1147,16 @@
                     }
                 });
                 renderPlanTable();
+                saveState(); 
                 showToast("Скидка обновлена");
+            } else {
+                saveState(); 
             }
         });
+
+        [parallelCountInput, startDateTimeInput, nightStartH, nightStartM, nightEndH, nightEndM].forEach(el => 
+            el.addEventListener('change', saveState)
+        );
 
         window.addEventListener('load', ()=>{
             if (currentPlan.length) renderFullSchedule();
